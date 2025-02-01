@@ -347,6 +347,20 @@ step2:旋转轴，考虑逆旋转(转置)
 
 <img src="images/image-20250131175600661.png" alt="image-20250131175600661" style="zoom:33%;" />
 
+​    
+$$
+\[     x_{\text{screen}} = \left(\frac{x_{\text{NDC}} + 1}{2}\right) \times \text{width}     \]
+$$
+​     
+$$
+\[     y_{\text{screen}} = \left(\frac{y_{\text{NDC}} + 1}{2}\right) \times \text{height}     \]
+$$
+
+$$
+\[     z_{\text{screen}} = \left(\frac{z_{\text{NDC}} + 1}{2}\right) \times \text{depth}     \]
+$$
+
+
 ##### 把三角形坐标变成屏幕空间的像素
 
 drawing machines
@@ -532,6 +546,441 @@ Aliasing/Jaggies 空间采样
 ###### 超分辨率
 
 ![image-20250131210317255](images/image-20250131210317255.png)
+
+## chapter4 shading着色
+
+##### 可见性与遮挡 Z-buffering
+
+很多物体显示在屏幕上，先后顺序与覆盖（作业2)
+
+画家算法（油画家）:先画远的，把远处的先光栅化
+
+<img src="images/image-20250201170457570.png" alt="image-20250201170457570" style="zoom:50%;" />
+
+深度从远到近进行排序 n个三角形O(nlogn)复杂度
+
+问题：遮挡关系形成了一个环
+
+<img src="images/image-20250201171011200.png" alt="image-20250201171011200" style="zoom: 33%;" />
+
+##### 解决：z-buffer  深度缓存算法
+
+对每个像素进行分析和记录
+
+<img src="images/image-20250201171146909.png" alt="image-20250201171146909" style="zoom: 33%;" />
+
+frame buffer：颜色（图像）
+
+depth buffer：深度信息
+
+简化计算，把z改成正的
+
+<img src="images/image-20250201171320541.png" alt="image-20250201171320541" style="zoom:33%;" />
+
+越近越黑，越远越白
+
+```
+initialize depth buffer to ∞
+during rasterization：
+for(each triangle T)//每个三角形
+	for(each sample (x,y,z) in T)//每个三角形的采样点
+		if(z＜zbuffer[x,y])//如果离屏幕更近
+		{
+			framebuffer[x,y]=rgb;//更新颜色
+			zbuffer[x,y]=z;//更新当前深度
+		}
+	else ;
+```
+
+复杂度：O(n)对n个三角形，没有排序，所以是线性时间
+
+假设前提：两个三角形的在同一点的深度不同
+
+维护对了z-buffer，就和顺序无关
+
+example：
+
+<img src="images/image-20250201172424289.png" alt="image-20250201172424289" style="zoom:50%;" />
+
+MASS情况下：对每个采样点划分四块分别做深度缓存
+
+Z-buffer处理不了透明物体
+
+##### 小结
+
+<img src="images/image-20250201183243084.png" alt="image-20250201183243084" style="zoom:50%;" />
+
+还差的就是着色（阴影\光照）
+
+##### 着色shading
+
+定义：对不同的物体应用不同的材质
+
+example:
+
+<img src="images/image-20250201183715715.png" alt="image-20250201183715715" style="zoom:33%;" />
+
+光源在右上，高光，漫反射部分，间接光照
+
+##### 定义与着色有关的一些量：
+
+<img src="images/image-20250201184236307.png" alt="image-20250201184236307" style="zoom:33%;" />
+
+shading point 反射点
+
+视线方向viewer direction 单位向量v
+
+法线 surface normal 单位向量n
+
+光线方向 light direction 单位向量l
+
+表面参数surface parameters 颜色，shininess等等
+
+<img src="images/image-20250201184634287.png" alt="image-20250201184634287" style="zoom:33%;" />
+
+局部光照，看不到阴影
+
+##### blinn-phong reflection model 反射/着色模型
+
+###### 漫反射项 diffuse
+
+<img src="images/image-20250201184850790.png" alt="image-20250201184850790" style="zoom: 33%;" />
+
+均匀反射
+
+到达光照
+
+<img src="images/image-20250201184932742.png" alt="image-20250201184932742" style="zoom:33%;" />
+
+发送光照
+
+<img src="images/image-20250201185729105.png" alt="image-20250201185729105" style="zoom:33%;" />
+
+平方反比衰减
+
+漫反射的公式
+
+![image-20250201185751255](images/image-20250201185751255.png)
+
+
+
+反射率(漫反射系数) 发送比例 到达比例
+
+发射率为1的时候 都反射出去，没有吸收
+
+漫反射是均匀反射，所以和v没关系（在任意角度看是一样的）
+
+<img src="images/image-20250201190445448.png" alt="image-20250201190445448" style="zoom: 50%;" />
+
+###### 高光项specular/blinn-phong
+
+<img src="images/image-20250201191422239.png" alt="image-20250201191422239" style="zoom:33%;" />
+
+反射方向r接近镜面反射
+
+v和反射方向r接近就看得到高光项
+
+<img src="images/image-20250201191548308.png" alt="image-20250201191548308" style="zoom:33%;" />
+
+半程向量h是v和l的中线（？）
+
+v和r方向接近等价于h和n接近
+
+镜面反射系数Ks 亮度
+
+<img src="images/image-20250201192018042.png" alt="image-20250201192018042" style="zoom:33%;" />
+
+p次方的结果：离得稍微偏离，高光就失去，p一般是100-200
+
+<img src="images/image-20250201192130740.png" alt="image-20250201192130740" style="zoom: 25%;" />
+
+
+
+###### 间接（环境）光照ambient
+
+<img src="images/image-20250201192210902.png" alt="image-20250201192210902" style="zoom:33%;" />
+
+假设环境光为Ia，为一个常数，近似得到，和l与v没关系
+
+保证没有地方是黑色的
+
+###### 总结：
+
+<img src="images/image-20250201192339471.png" alt="image-20250201192339471" style="zoom:33%;" />
+
+
+
+##### shading frequencies 着色频率
+
+<img src="images/image-20250201192831226.png" alt="image-20250201192831226" style="zoom:33%;" />
+
+平面-shading points 插值
+
+- **flat shading**：每个三角形有一个法向量，进行着色，三角形内部各处着色相同
+- **Gouraud shading**：每个顶点有一个法向量，进行着色，三角形内部颜色通过插值计算出
+- **Phong shading**：每个顶点有一个法向量，通过插值计算出三角形内每个像素的法向量，再对每个像素进行着色
+
+<img src="images/image-20250201193313524.png" alt="image-20250201193313524" style="zoom:33%;" />
+
+<img src="images/image-20250201193341852.png" alt="image-20250201193341852" style="zoom:33%;" />
+
+<img src="images/image-20250201193538973.png" alt="image-20250201193538973" style="zoom: 33%;" />
+
+<img src="images/image-20250201193615941.png" alt="image-20250201193615941" style="zoom:33%;" />
+
+几何越复杂，可以用更简单的方法
+
+<img src="images/image-20250201213905188.png" alt="image-20250201213905188" style="zoom: 25%;" />
+
+顶点的相邻面的法线的加权平均---顶点的法线
+
+<img src="images/image-20250201214007991.png" alt="image-20250201214007991" style="zoom: 33%;" />
+
+##### 实时渲染管线Graphics(Real-time Rendering Pipeline)
+
+**图形管线（graphics pipeline）**，或者称为**实时渲染管线（real-time rendering pipeline）**，是指通过给定虚拟相机，3D场景物体，光源等要素来生产或者渲染一副2D 图像的过程。如图：
+
+场景到最后一张图
+
+<img src="images/image-20250201214915900.png" alt="image-20250201214915900" style="zoom:67%;" />
+
+
+
+##### 像素着色器
+
+<img src="images/image-20250201220722212.png" alt="image-20250201220722212" />
+
+<img src="images/image-20250201220722212.png" alt="image-20250201220722212" style="zoom:50%;" />
+
+##### texture mapping纹理映射
+
+**纹理映射（texture mapping）**就是把一张2维的图像贴（映射）到一个三维物体表面。三维物体上每个三角形顶点对应二维纹理的一个坐标(u,v)。
+
+至于怎么映射、以及纹理如何设计，我们不关心。
+
+<img src="images/image-20250201221718295.png" alt="image-20250201221718295" style="zoom:33%;" />
+
+定义任何位置上的所以属性
+
+任何物体是=的表面是2维的
+
+<img src="images/image-20250201222804084.png" alt="image-20250201222804084" style="zoom: 50%;" />![image-20250201222854393](images/image-20250201222854393.png)
+
+<img src="images/image-20250201222804084.png" alt="image-20250201222804084" style="zoom: 50%;" />![image-20250201222854393](images/image-20250201222854393.png)
+
+<img src="images/image-20250201223204690.png" alt="image-20250201223204690" style="zoom:67%;" />
+
+纹理无缝衔接
+
+<img src="images/image-20250201223435570.png" alt="image-20250201223435570" style="zoom:50%;" /> 
+
+##### 重心坐标
+
+为了做三角形内部的插值
+
+why？三角形顶点的属性值（纹理映射，颜色），平滑过渡计算三角形内部的值
+
+定义：
+
+<img src="images/image-20250201225234273.png" alt="image-20250201225234273" style="zoom: 33%;" />
+
+examples 重心坐标
+
+<img src="images/image-20250201225815284.png" alt="image-20250201225815284" style="zoom: 33%;" />
+
+面积比计算任意一点的中心坐标
+
+<img src="images/image-20250201225925189.png" alt="image-20250201225925189" style="zoom:33%;" />
+
+三角形自己的重心
+
+<img src="images/image-20250201230019636.png" alt="image-20250201230019636" style="zoom:33%;" />
+
+<img src="images/image-20250201230039092.png" alt="image-20250201230039092" style="zoom:33%;" />
+
+用坐标计算重心坐标
+
+<img src="images/image-20250201230019636.png" alt="image-20250201230019636" style="zoom:33%;" />![image-20250201230039092](images/image-20250201230039092.png)
+
+使用中心坐标进行插值
+
+<img src="images/image-20250201230206697.png" alt="image-20250201230206697" style="zoom:33%;" />
+
+问题：投影坐标下不能保证重心坐标不变
+
+所以在三维空间中进行插值，再进行投影
+
+##### 利用重心坐标计算纹理
+
+把纹理应用到物体过程为：
+
+- 对于每个采样点（像素中心），可以通过重心坐标插值得到纹理对应(u,v)坐标。原来我们只知道顶点对应的(u,v)坐标，现在通过插值得到所有采样点的了。
+- 获取材质(u,v)坐标的颜色，并设置该采样点的漫反射系数Kd即可
+
+<img src="images/image-20250201231414167.png" alt="image-20250201231414167" style="zoom:50%;" />
+
+###### 纹理映射的问题
+
+- **纹理放大（texture magnification）**：当纹理图片分辨率过低，就会出现多个像素点仍然对应一个(u,v)坐标，并将该(u,v)坐标下颜色信息复制给该像素点，这样形成的图片边界过渡就会非常不自然，形成一个个的小格子（图Nearest）。
+- **纹理缩小（texture minification）**：纹理分辨率过高，就会出现一个像素点对应多个(u,v)坐标，便会导致走样的问题。
+
+###### Texture Magnification
+
+texel 纹理上的一个像素
+
+<img src="images/image-20250201232233428.png" alt="image-20250201232233428" style="zoom:50%;" />
+
+<img src="images/image-20250201232250751.png" alt="image-20250201232250751" style="zoom: 50%;" />
+
+<img src="images/image-20250201232340411.png" alt="image-20250201232340411" style="zoom: 50%;" />
+
+双三次插值bicubic 取周围的16个
+
+事实上，在纹理被放大和缩小时都可以使用nearest、bilinear或bicubic的做法。这称为**纹理滤波（texture filtering）**。
+
+###### Texture Minification
+
+形成摩尔纹+锯齿
+
+像素覆盖很多纹理空间的像素
+
+<img src="images/image-20250201233517047.png" alt="image-20250201233517047" style="zoom:33%;" />
+
+<img src="images/image-20250201233025473.png" alt="image-20250201233025473" style="zoom: 50%;" />
+
+可以使用**超采样（supersampling）**解决，但是计算昂贵。
+
+###### **Mipmap**概念，可以实现快、近似、正方形的**范围查询（range query）**——可以立刻得到一个区域内的平均值（或最大值、最小值等）。
+
+利用原始纹理，预处理生成mipmap。额外存储其实只有原图的三分之一，不占多少空间。
+
+<img src="images/image-20250201233812289.png" alt="image-20250201233812289" style="zoom:50%;" />
+
+图像金字塔：
+
+<img src="images/image-20250201233920207.png" alt="image-20250201233920207" style="zoom: 33%;" />
+
+近似计算在第几层可以缩小成一个像素，查找第几层的midmap
+
+<img src="images/image-20250201234402674.png" alt="image-20250201234402674" style="zoom: 33%;" />
+
+<img src="images/image-20250201234657591.png" alt="image-20250201234657591" style="zoom: 33%;" />
+
+但是得到的结果不连续->插值
+
+假设我算出来是1.8层，还需要使用**三线性插值（trilinear interpolation）**（两次双线性插值后，再做一次线性插值）来得到屏幕像素的最终值：
+
+插值结果：
+
+<img src="images/image-20250201234932266.png" alt="image-20250201234932266" style="zoom:50%;" />
+
+###### midmap的缺点
+
+然而由于mipmap只实现正方形内的范围查找，于是会产生overblur的问题：（屏幕像素对应材质的长方形甚至斜长的区域，在做mipmap时，自然会取过大的正方形，从而导致模糊的情况）
+
+各向异性过滤-对矩形的区域的查询
+
+<img src="images/image-20250201235253535.png" alt="image-20250201235253535" style="zoom:50%;" />
+
+<img src="images/image-20250201235307703.png" alt="image-20250201235307703" style="zoom:50%;" />
+
+EWA过滤
+
+<img src="images/image-20250201235353465.png" alt="image-20250201235353465" style="zoom:50%;" />
+
+######  Applications of Textures
+
+Environment Map
+
+可以使用纹理来表示环境光，如图：
+
+<img src="images/image-20250201235659966.png" alt="image-20250201235659966" style="zoom:33%;" />
+
+Bump Mapping
+
+**凹凸贴图（bump mapping）**可以记录物体表面相对高度，从而影响物体表面法线，进而影响阴影，给人凹凸感觉。不过物体表面实际上还是光滑的，凹凸只是纹理带来的错觉。
+
+<img src="images/image-20250201235646911.png" alt="image-20250201235646911" style="zoom:33%;" />
+
+**位移贴图（displacement mapping）**则真正移动了3Dmesh的顶点，从而有更真实的阴影效果。但是要求物体的3D mesh要足够细，才能支持这个操作。
+
+**3D Procedural Noise**
+
+引入噪声，来生成3维纹理（譬如大理石纹路之类的）。
+
+**Provide Precomputed Shading**
+
+就是在纹理上已经做好shading了
+
+**3D Textures**
+
+纹理可以不只是二维表面的，也可以是三维空间的。还可以做**体渲染（volume rendering）**。譬如CT扫描的结果。
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
